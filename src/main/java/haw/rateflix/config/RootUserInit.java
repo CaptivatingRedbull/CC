@@ -10,6 +10,12 @@ import org.springframework.transaction.annotation.Transactional;
 import haw.rateflix.domain.User;
 import haw.rateflix.repository.UserRepository;
 
+/**
+ * Initializes the root user in the database when the application starts in the
+ * production profile.
+ * The root user is created with a predefined username and password if it does not
+ * already exist.
+ */
 @Profile("prod")
 @Configuration
 public class RootUserInit implements CommandLineRunner {

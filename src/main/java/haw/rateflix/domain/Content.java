@@ -2,6 +2,12 @@ package haw.rateflix.domain;
 
 import jakarta.persistence.*;
 
+/**
+ * Represents a content item in the Rateflix application.
+ * Each content has a unique ID, a kind (e.g., movie, series), a title,
+ * a description, a release year, and vote counts (upvotes and downvotes).
+ * The content is stored in a database table named "contents".
+ */
 @Entity
 @Table(name = "contents")
 public class Content {
@@ -23,10 +29,9 @@ public class Content {
 
     private int upVote;
 
-    
-
     // Constructors
-    public Content() {}
+    public Content() {
+    }
 
     public Content(Kind kind, String title, String description, int year, int upVote, int downVote) {
         this.kind = kind;

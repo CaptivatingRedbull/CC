@@ -2,6 +2,11 @@ package haw.rateflix.domain;
 
 import jakarta.persistence.*;
 
+/**
+ * Represents a user in the Rateflix application.
+ * Each user has a unique ID, a username, and a password.
+ * The user is stored in a database table named "users".
+ */
 @Entity
 @Table(name = "users")
 public class User {
@@ -16,7 +21,8 @@ public class User {
     private String password;
 
     // Constructors
-    public User() {}
+    public User() {
+    }
 
     public User(String username, String password) {
         this.username = username;
