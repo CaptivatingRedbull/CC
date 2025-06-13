@@ -16,14 +16,14 @@ import haw.rateflix.repository.UserRepository;
  * The root user is created with a predefined username and password if it does not
  * already exist.
  */
-@Profile("prod")
+@Profile("testData")
 @Configuration
 public class RootUserInit implements CommandLineRunner {
 
-    @Value("${ROOT_USERNAME} = admin")
+    @Value("${ROOT_USERNAME}")
     private String rootUsername;
 
-    @Value("${ROOT_PASSWORD} = adminpass")
+    @Value("${ROOT_PASSWORD}")
     private String rootPassword;
 
     @Autowired

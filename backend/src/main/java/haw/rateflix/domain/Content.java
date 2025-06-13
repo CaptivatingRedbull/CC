@@ -1,5 +1,7 @@
 package haw.rateflix.domain;
 
+import org.hibernate.annotations.Formula;
+
 import jakarta.persistence.*;
 
 /**
@@ -28,6 +30,11 @@ public class Content {
     private int year;
 
     private int upVote;
+
+    private int downVote;
+
+    @Formula("up_vote - down_vote")
+    private int score;
 
     // Constructors
     public Content() {
@@ -87,13 +94,15 @@ public class Content {
         this.upVote = upVote;
     }
 
-    private int downVote;
-
     public int getDownVote() {
         return downVote;
     }
 
     public void setDownVote(int downVote) {
         this.downVote = downVote;
+    }
+
+    public int getScore() {
+        return score;
     }
 }
