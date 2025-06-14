@@ -1,0 +1,12 @@
+push_backend:
+  stage: push
+  image: quay.io/skopeo/stable:latest
+  dependencies:
+    - build_backend
+    - release_version
+  script:
+    - ImageVersion=$(cat release_version.txt)
+    - echo "Image version is $ImageVersion"
+    - echo "${CI_REGISTRY_PASSWORD}" | skopeo login harbor.k8s.dbs.hof-university.de --username "${CI_REGISTRY_USERNAME}" --password-stdin
+    - skopeo copy docker-archive:backend.tar docker://${CI_REGISTRY_URL}/${IMAGE_BACKEND_NAME}:${ImageVersion}
+    - skopeo copy docker-archive:backend.tar docker://${CI_REGISTRY_URL}/${IMAGE_BACKEND_NAME}:latest

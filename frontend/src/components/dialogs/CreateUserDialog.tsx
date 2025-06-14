@@ -41,7 +41,6 @@ export function CreateUserDialog({ open, onOpenChange, onSuccess }: CreateUserDi
         setError('');
 
         try {
-            // Use the API function instead of direct fetch
             await register({
                 username,
                 password

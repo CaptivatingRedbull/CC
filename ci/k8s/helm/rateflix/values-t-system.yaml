@@ -1,0 +1,8 @@
+replicaCount: 1 
+
+ingress:
+  host: "rateflix-test.k8s.dbs.hof-university.de"
+
+postgresql:
+  persistence:
+    size: 512Mi

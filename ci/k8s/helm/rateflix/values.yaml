@@ -1,0 +1,34 @@
+
+replicaCount: 1
+
+frontend:
+  image:
+    repository: "to-be-overridden-by-ci"
+    tag: "to-be-overridden-by-ci"
+  service:
+    port: 80
+
+backend:
+  image:
+    repository: "to-be-overridden-by-ci"
+    tag: "to-be-overridden-by-ci"
+  service:
+    port: 8080
+
+postgresql:
+  enabled: true
+  auth:
+    username: "testuser"
+    database: "testdb"
+  persistence:
+    size: 1Gi
+    storageClass: "longhorn"
+
+redis:
+  enabled: true
+
+ingress:
+  enabled: true
+  host: "rateflix.local"
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2

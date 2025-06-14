@@ -23,7 +23,7 @@ import { getAllContents, addUpVote, addDownVote } from '@/api/contentApi';
 import type { Content, Kind, Page } from '@/utils/types';
 
 interface ContentPageProps {
-    adminExtension?: (itemId: number) => React.ReactNode; //used to inject admin actions like delete
+    adminExtension?: (itemId: number) => React.ReactNode; 
     refreshTrigger?: number;
     onLoginClick?: () => void;
     headerActions?: React.ReactNode;
@@ -90,7 +90,6 @@ const ContentCardSkeleton = () => (
 
 
 export function ContentPage({ adminExtension, refreshTrigger = 0, onLoginClick, headerActions }: ContentPageProps) {
-    // State for filters and pagination
     const [kind, setKind] = useState<Kind | undefined>(undefined);
     const [searchTerm, setSearchTerm] = useState<string>('');
     const [sortBy, setSortBy] = useState<string>("year");
@@ -98,12 +97,9 @@ export function ContentPage({ adminExtension, refreshTrigger = 0, onLoginClick, 
     const [currentPage, setCurrentPage] = useState(0);
     const [pageSize] = useState(10);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-    // State for data
     const [contentPage, setContentPage] = useState<Page<Content> | null>(null);
     const [loading, setLoading] = useState(true);
 
-    // Fetch contents from the API
     const loadContents = useCallback(async () => {
         setLoading(true);
         try {
@@ -123,7 +119,6 @@ export function ContentPage({ adminExtension, refreshTrigger = 0, onLoginClick, 
         }
     }, [currentPage, pageSize, sortBy, sortDirection, searchTerm, kind]);
 
-    // Effect to load contents when dependencies change
     useEffect(() => {
         loadContents();
     }, [loadContents, refreshTrigger]);
@@ -133,7 +128,6 @@ export function ContentPage({ adminExtension, refreshTrigger = 0, onLoginClick, 
         setIsLoggedIn(!!token);
     }, []);
 
-    // Handlers for UI interactions
     const handleKindChange = (value: string) => {
         const newKind = value === 'all' ? undefined : value as Kind;
         setKind(newKind);
@@ -189,17 +183,15 @@ export function ContentPage({ adminExtension, refreshTrigger = 0, onLoginClick, 
                 <div className="absolute top-4 right-4">
                     <Button
                         onClick={(e) => {
-                            e.preventDefault(); // Prevent any default navigation
+                            e.preventDefault(); 
                             if (onLoginClick) {
                                 onLoginClick();
-                            } else {
-                                console.log("No login handler provided"); // For debugging
                             }
                         }}
                         variant="outline"
                         size="sm"
                         className="flex items-center gap-1"
-                        type="button" // Explicitly set type to prevent form submission
+                        type="button" 
                     >
                         <LogIn className="h-4 w-4" />
                         <span>Login</span>
@@ -269,7 +261,7 @@ export function ContentPage({ adminExtension, refreshTrigger = 0, onLoginClick, 
                 <>
                     <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 transition-opacity duration-300 ${loading ? 'opacity-50' : 'opacity-100'}`}>
                         {contentPage.content.map(item => (
-                            <Card key={item.id} className="flex flex-col transition-shadow duration-300">
+                            <Card key={item.id} data-testid="content-card" className="flex flex-col transition-shadow duration-300">
                                 <CardHeader>
                                     <CardTitle className="text-xl font-semibold flex items-center">
                                         <GetKindIcon kind={item.kind} />

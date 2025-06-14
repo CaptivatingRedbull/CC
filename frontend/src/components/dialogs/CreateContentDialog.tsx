@@ -37,12 +37,23 @@ export function CreateContentDialog({ open, onOpenChange, onSuccess }: CreateCon
 
     const handleSubmit = async () => {
         // Form validation
-        if (!title || !description || !year || !kind) {
-            setError('All fields are required');
+        if (!title) {
+            setError('Title is required');
+            return;
+        }
+        if (!description) {
+            setError('Description is required');
+            return;
+        }
+        if (!year) {
+            setError('Release Year is required');
+            return;
+        }
+        if (!kind) {
+            setError('Type is required');
             return;
         }
 
-        // Validate year is a number
         const yearNum = parseInt(year);
         if (isNaN(yearNum)) {
             setError('Year must be a valid number');
@@ -53,7 +64,6 @@ export function CreateContentDialog({ open, onOpenChange, onSuccess }: CreateCon
         setError('');
 
         try {
-            // Use the API function instead of direct fetch
             await createContent({
                 title,
                 description,

@@ -1,0 +1,25 @@
+deploy_t_system:
+  stage: deploy_t
+  image:
+    name: alpine/helm:latest
+    entrypoint: [""]
+  needs: ["push_backend", "push_frontend"]
+  script:
+    - echo "Deploying to Testing (T-System)..."
+    - |
+      helm upgrade --install rateflix-t-release ./ci/k8s/helm/rateflix \
+      --namespace ${KUBE_NAMESPACE_TESTING} \
+      --create-namespace \
+      --atomic \
+      -f ./k8s/helm/rateflix/values-t-system.yaml \
+      --set frontend.image.repository="${HARBOR_REGISTRY_URL}/${IMAGE_FRONTEND_NAME}" \
+      --set frontend.image.tag="${CI_COMMIT_SHORT_SHA}" \
+      --set backend.image.repository="${HARBOR_REGISTRY_URL}/${IMAGE_BACKEND_NAME}" \
+      --set backend.image.tag="${CI_COMMIT_SHORT_SHA}" \
+      --set-string postgresql.auth.password="${POSTGRES_PASSWORD}" \
+      --set-string redis.auth.password="${REDIS_PASSWORD}" \
+      --set-string backend.env.jwtSecret="${JWT_SECRET}" \
+      --set-string backend.env.appRootPassword="${APP_ROOT_PASSWORD}"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: manual

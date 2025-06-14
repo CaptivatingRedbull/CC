@@ -1,0 +1,15 @@
+release_version:
+  stage: build_version
+  image: node:20-alpine
+  before_script:
+    - apk add --no-cache git bash
+  script:
+    - npm install -g semantic-release @semantic-release/commit-analyzer @semantic-release/exec @semantic-release/release-notes-generator @semantic-release/changelog @semantic-release/git @semantic-release/gitlab
+    - semantic-release
+  only:
+    - main
+  artifacts:
+    paths:
+      - release_version.txt
+      - CHANGELOG.md
+    expire_in: 1 day

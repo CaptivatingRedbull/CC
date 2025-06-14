@@ -37,7 +37,6 @@ export function UpdateContentDialog({ open, onOpenChange, contentId, onSuccess }
     const [isLoading, setIsLoading] = useState(false);
     const [fetchingContent, setFetchingContent] = useState(false);
 
-    // Fetch content data when dialog opens
     useEffect(() => {
         if (open && contentId) {
             const fetchContentDetails = async () => {
@@ -86,8 +85,8 @@ export function UpdateContentDialog({ open, onOpenChange, contentId, onSuccess }
                 description,
                 year: yearNum,
                 kind: kind as Kind,
-                upVote: 0, // These will be ignored by the API
-                downVote: 0, // as they are managed by the server
+                upVote: 0, 
+                downVote: 0, 
             });
 
             onSuccess();

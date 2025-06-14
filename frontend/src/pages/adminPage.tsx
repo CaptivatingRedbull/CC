@@ -1,27 +1,23 @@
 import { useState, useEffect } from 'react';
 import { ContentPage } from './contentPage';
 import { Button } from '@/components/ui/button';
-import { Trash2, LogIn, UserPlus, FilePlus, Pencil } from 'lucide-react'; // Add Pencil icon
+import { Trash2, LogIn, UserPlus, FilePlus, Pencil } from 'lucide-react';
 import { DeleteContentDialog } from '@/components/dialogs/DeleteContentDialog';
 import { LoginDialog } from '@/components/dialogs/LoginDialog';
 import { CreateUserDialog } from '@/components/dialogs/CreateUserDialog';
 import { CreateContentDialog } from '@/components/dialogs/CreateContentDialog';
-import { UpdateContentDialog } from '@/components/dialogs/UpdateContentDialog'; // Import the new component
+import { UpdateContentDialog } from '@/components/dialogs/UpdateContentDialog'; 
 
 export function AdminPage() {
-    // State for authentication
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
-
-    // State for dialogs
     const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-    const [updateDialogOpen, setUpdateDialogOpen] = useState(false); // New state for update dialog
+    const [updateDialogOpen, setUpdateDialogOpen] = useState(false); 
     const [loginDialogOpen, setLoginDialogOpen] = useState(false);
     const [createUserDialogOpen, setCreateUserDialogOpen] = useState(false);
     const [createContentDialogOpen, setCreateContentDialogOpen] = useState(false);
 
-    // Check authentication on component mount
     useEffect(() => {
         const token = localStorage.getItem('token');
         setIsAuthenticated(!!token);
@@ -29,7 +25,6 @@ export function AdminPage() {
 
     // Admin extension component to be injected into ContentPage
     const renderCardFooterExtension = (itemId: number) => {
-        // Only render if authenticated
         if (!isAuthenticated) return null;
 
         return (
@@ -40,7 +35,7 @@ export function AdminPage() {
                     size="icon"
                     className="ml-1 text-blue-600 hover:text-blue-700 hover:bg-blue-100"
                     onClick={(e) => {
-                        e.stopPropagation(); // Prevent event bubbling
+                        e.stopPropagation();
                         setSelectedItemId(itemId);
                         setUpdateDialogOpen(true);
                     }}
@@ -54,7 +49,7 @@ export function AdminPage() {
                     size="icon"
                     className="ml-1 text-gray-600 hover:text-red-700 hover:bg-red-100"
                     onClick={(e) => {
-                        e.stopPropagation(); // Prevent event bubbling
+                        e.stopPropagation();
                         setSelectedItemId(itemId);
                         setDeleteDialogOpen(true);
                     }}

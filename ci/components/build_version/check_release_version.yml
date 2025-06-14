@@ -1,0 +1,14 @@
+check_release_version:
+  image: alpine:latest
+  stage: build_version
+  dependencies:
+    - release_version
+  needs:
+    - job: release_version
+      artifacts: true
+  script:
+    - echo "Checking release_version.txt"
+    - cat release_version.txt
+    - if [ ! -f release_version.txt ]; then echo "release_version.txt does not exist. Stopping pipeline."; exit 0; fi
+    - if [ ! -s release_version.txt ]; then echo "release_version.txt is empty. Stopping pipeline."; exit 0; fi
+  allow_failure: true
