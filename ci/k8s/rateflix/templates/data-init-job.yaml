@@ -1,0 +1,52 @@
+{{- if .Values.dataInit.enabled -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{ .Release.Name }}-data-init"
+  labels:
+    app.kubernetes.io/name: data-init
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  annotations:
+    # This tells Helm to run this job after an install or upgrade
+    "helm.sh/hook": post-install,post-upgrade
+    # This tells Helm to delete the old job before creating a new one
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: data-init
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      restartPolicy: Never
+      initContainers:
+      - name: wait-for-postgres
+        image: "{{ .Values.image.registry }}/{{ .Values.image.cache }}/library/postgres:{{ .Values.postgresHa.image.tag }}"
+        command: ['sh', '-c']
+        args:
+          - |
+            echo "Data init job: Waiting for PostgreSQL to be ready..."
+            until pg_isready -h {{ .Release.Name }}-postgres-ha-service -p 5432 -U {{ .Values.postgresHa.secret.dbUsername }}; do
+              echo "PostgreSQL is not ready yet. Waiting..."
+              sleep 2
+            done
+            echo "PostgreSQL is ready for data initialization!"
+        env:
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-backend-secret
+              key: SPRING_DATASOURCE_PASSWORD
+      containers:
+      - name: data-init
+        image: "{{ .Values.image.registry }}/{{ .Values.image.project }}/{{ .Values.backend.image.name }}:{{ .Values.image.tag }}"
+        command: ["java"]
+        args: ["-jar", "app.jar", "--spring.profiles.active=postgres,testData", "--app.run-and-exit=true"]
+        envFrom:
+        - configMapRef:
+            name: {{ .Release.Name }}-backend-config
+        - secretRef:
+            name: {{ .Release.Name }}-backend-secret
+        resources:
+          {{- toYaml .Values.backend.resources | nindent 10 }}
+{{- end }}

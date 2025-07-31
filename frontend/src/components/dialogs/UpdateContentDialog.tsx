@@ -86,7 +86,8 @@ export function UpdateContentDialog({ open, onOpenChange, contentId, onSuccess }
                 year: yearNum,
                 kind: kind as Kind,
                 upVote: 0, 
-                downVote: 0, 
+                downVote: 0,
+                score: 0,
             });
 
             onSuccess();

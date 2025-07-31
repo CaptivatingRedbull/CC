@@ -1,5 +1,6 @@
 package haw.rateflix.domain;
 
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.Formula;
 
 import jakarta.persistence.*;
@@ -24,16 +25,19 @@ public class Content {
     @Column(nullable = false)
     private String title;
 
-    @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(name="release_year", nullable=false)
     private int year;
 
+    @Column(name="up_vote")
     private int upVote;
 
+    @Column(name="down_vote")
     private int downVote;
 
     @Formula("up_vote - down_vote")
+    @ColumnDefault("0")
     private int score;
 
     // Constructors
@@ -104,5 +108,9 @@ public class Content {
 
     public int getScore() {
         return score;
+    }
+
+    public void setScore(int score) {
+        this.score = score;
     }
 }

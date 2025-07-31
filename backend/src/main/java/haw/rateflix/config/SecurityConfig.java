@@ -1,5 +1,6 @@
 package haw.rateflix.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -21,6 +22,10 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
+
+    
+    @Value("${CORS_ALLOWED_ORIGINS}")
+    private String corsAllowedOrigins;
 
     private final JwtRequestFilter jwtRequestFilter;
 
@@ -66,7 +71,7 @@ public class SecurityConfig {
             .cors(cors -> cors
             .configurationSource(request -> {
                 var corsConfig = new org.springframework.web.cors.CorsConfiguration();
-                corsConfig.setAllowedOrigins(java.util.List.of("http://localhost:5173"));
+                corsConfig.setAllowedOrigins(java.util.List.of(corsAllowedOrigins));
                 corsConfig.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
                 corsConfig.setAllowedHeaders(java.util.List.of("*"));
                 corsConfig.setAllowCredentials(true);
@@ -80,6 +85,7 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.PUT, "/api/contents/*/downvote").permitAll() 
             .requestMatchers(HttpMethod.DELETE, "/api/contents/*/upvote").permitAll()
             .requestMatchers(HttpMethod.DELETE, "/api/contents/*/downvote").permitAll()
+            .requestMatchers("/actuator/**").permitAll()
             .anyRequest().authenticated()
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));

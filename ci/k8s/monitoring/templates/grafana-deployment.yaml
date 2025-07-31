@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "monitoring.fullname" . }}-grafana
+  labels:
+    {{- include "grafana.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.grafana.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "grafana.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "grafana.selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/grafana-configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/grafana-secret.yaml") . | sha256sum }}
+    spec:
+      securityContext:
+        {{- toYaml .Values.securityContext | nindent 8 }}
+      containers:
+        - name: grafana
+          image: "{{ .Values.image.registry }}/{{ .Values.image.cache }}/{{ .Values.grafana.image.name }}:{{ .Values.grafana.image.tag }}"
+          imagePullPolicy: {{ .Values.grafana.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "monitoring.fullname" . }}-grafana-admin
+                  key: admin-user
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "monitoring.fullname" . }}-grafana-admin
+                  key: admin-password
+            - name: GF_PATHS_DATA
+              value: /var/lib/grafana/
+            - name: GF_PATHS_LOGS
+              value: /var/log/grafana
+            - name: GF_PATHS_PLUGINS
+              value: /var/lib/grafana/plugins
+            - name: GF_PATHS_PROVISIONING
+              value: /etc/grafana/provisioning
+            - name: GF_LOG_LEVEL
+              value: debug
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 30
+          resources:
+            {{- toYaml .Values.grafana.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/grafana/grafana.ini
+              subPath: grafana.ini
+            - name: datasources
+              mountPath: /etc/grafana/provisioning/datasources/datasources.yaml
+              subPath: datasources.yaml
+            {{- if .Values.grafana.dashboards.enabled }}
+            - name: dashboards-config
+              mountPath: /etc/grafana/provisioning/dashboards/dashboards.yaml
+              subPath: dashboards.yaml
+            - name: dashboards
+              mountPath: /var/lib/grafana/dashboards
+            {{- end }}
+            {{- if .Values.grafana.persistence.enabled }}
+            - name: storage
+              mountPath: /var/lib/grafana
+            {{- end }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "monitoring.fullname" . }}-grafana-config
+        - name: datasources
+          configMap:
+            name: {{ include "monitoring.fullname" . }}-grafana-datasources
+        {{- if .Values.grafana.dashboards.enabled }}
+        - name: dashboards-config
+          configMap:
+            name: {{ include "monitoring.fullname" . }}-grafana-dashboards-config
+        - name: dashboards
+          configMap:
+            name: {{ include "monitoring.fullname" . }}-grafana-dashboards
+        {{- end }}
+        {{- if .Values.grafana.persistence.enabled }}
+        - name: storage
+          persistentVolumeClaim:
+            claimName: {{ include "monitoring.fullname" . }}-grafana-storage
+        {{- end }}

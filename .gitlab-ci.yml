@@ -1,0 +1,76 @@
+default:
+  tags:
+    - k8s
+
+workflow:
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_COMMIT_MESSAGE !~ /^chore:/ && $CI_COMMIT_MESSAGE !~ /\[skip ci\]/i'
+      when: always
+    - if: '$CI_PIPELINE_SOURCE == "schedule" && $BUILD_TOOL_IMAGES == "true"'
+      when: always
+    - when: never
+
+variables:
+  # Regular pipeline variables
+  IMAGE_BACKEND_NAME: "rateflix-backend"
+  IMAGE_FRONTEND_NAME: "rateflix-frontend"
+  
+  # Registry configuration
+  CI_REGISTRY_CACHE: "docker-io"
+  
+  # Database configuration
+  DB_NAME: "rateflix"
+  DB_USERNAME: "rateflix_user"
+  
+  # Root user configuration
+  ROOT_USERNAME: "admin"
+  
+    # Helm chart configuration
+  HELM_CHART_PATH: "./ci/k8s/rateflix"
+  RELEASE_NAME: "rateflix"
+  
+  # Ingress configuration
+  INGRESS_BASE_HOST: "k8s.dbs.hof-university.de"
+  TEST_INGRESS_SUBDOMAIN: "t-rateflix"  # Override in CI/CD variables for different environments
+  
+  # Tool image build variables - set in GitLab schedule
+  BUILD_TOOL_IMAGES: "false"  # Set to "true" in schedule to build tool images
+  IMAGE_LIST: "all"  # Options all, alpine-tools, image-build-push-sign, kubectl, release 
+
+stages:
+  - build_version
+  - unit_tests
+  - integration_tests
+  - build
+  - deploy_t_system
+  - deploy_p_system
+
+include:
+  - local: "/ci/scheduled/scheduled_tool_images.yml"
+  - local: "/ci/components/build_version/release.yml"
+    rules:
+      - if: '$BUILD_TOOL_IMAGES != "true"'
+  - local: "/ci/components/build_version/check_release_version.yml"
+    rules:
+      - if: '$BUILD_TOOL_IMAGES != "true"'
+  - local: "/ci/components/test/test_backend.yml"
+    rules:
+      - if: '$BUILD_TOOL_IMAGES != "true"'
+  - local: "/ci/components/test/test_frontend.yml"
+    rules:
+      - if: '$BUILD_TOOL_IMAGES != "true"'
+  - local: "/ci/components/build_and_push/build_push_sign.yml"
+    rules:
+      - if: '$BUILD_TOOL_IMAGES != "true"' 
+  - local: "/ci/components/deploy/deploy_t.yml"
+    rules:
+      - if: '$BUILD_TOOL_IMAGES != "true"'
+  - local: "/ci/components/deploy/deploy_p.yml"
+    rules:
+      - if: '$BUILD_TOOL_IMAGES != "true"'
+  - local: '/ci/components/deploy/test_postgres_ha_t.yml'
+    rules:
+      - if: '$BUILD_TOOL_IMAGES != "true"'
+  - local: '/ci/components/deploy/test_redis_ha_t.yml'
+    rules:
+      - if: '$BUILD_TOOL_IMAGES != "true"'

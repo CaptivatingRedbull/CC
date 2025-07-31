@@ -1,0 +1,37 @@
+.build_push_sign_template:
+  stage: build
+  image: "${CI_REGISTRY_URL}/${CI_REGISTRY_PROJECT}/image-build-push-sign:latest"
+  script:
+    - oras version
+    - cosign version
+    - skopeo --version
+    - buildctl --version
+    - FULL_IMAGE_NAME="$CI_REGISTRY_URL/$CI_REGISTRY_PROJECT/$IMAGE_NAME"
+    - echo "Building and pushing $NAME ($FULL_IMAGE_NAME:$IMAGE_TAG)"
+    
+    # Create temporary dockerfile with substituted registry values
+    - mkdir -p /tmp/dockerfiles
+    - sed "s|harbor\.k8s\.dbs\.hof-university\.de|${CI_REGISTRY_URL}|g" ./ci/docker/${DOCKERFILE} > /tmp/dockerfiles/${DOCKERFILE}
+    - cat /tmp/dockerfiles/${DOCKERFILE}
+    
+    - |
+      buildctl --addr ${BUILDKIT_HOST} build \
+      --frontend dockerfile.v0 \
+      --local context=. \
+      --local dockerfile=/tmp/dockerfiles \
+      --opt build-arg:BUILDKIT_SBOM_SCAN_STAGE=true \
+      --opt filename=${DOCKERFILE} \
+      --output type=docker,name=${FULL_IMAGE_NAME} ${IMAGE_TAG} > $NAME.tar
+    - echo "Skopeo logging in to registry ${CI_REGISTRY_URL}"
+    - echo "${CI_REGISTRY_PASSWORD}" | skopeo login "${CI_REGISTRY_URL}" --username "${CI_REGISTRY_USERNAME}" --password-stdin
+    - echo "Oras logging in to registry ${CI_REGISTRY_URL}"
+    - echo "${CI_REGISTRY_PASSWORD}" | oras login "${CI_REGISTRY_URL}" --username "${CI_REGISTRY_USERNAME}" --password-stdin
+
+    - echo "Pushing $NAME image with tag $IMAGE_TAG"
+    - skopeo copy docker-archive:$NAME.tar "docker://${FULL_IMAGE_NAME}:${IMAGE_TAG}"
+    - DIGEST=$(skopeo inspect --format '{{.Digest}}' "docker://${FULL_IMAGE_NAME}:${IMAGE_TAG}")
+    - echo "Image digest is ${DIGEST}"
+
+    - echo "$COSIGN_KEY_B64" | base64 -d > cosign.key
+    - echo "${CI_REGISTRY_PASSWORD}" | cosign login "${CI_REGISTRY_URL}" --username "${CI_REGISTRY_USERNAME}" --password-stdin
+    - cosign sign --key cosign.key --yes "${FULL_IMAGE_NAME}@${DIGEST}"

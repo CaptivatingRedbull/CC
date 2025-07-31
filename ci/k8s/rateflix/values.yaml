@@ -1,0 +1,151 @@
+image:
+  registry: "${CI_REGISTRY_URL}"
+  cache: "${CI_REGISTRY_CACHE}"
+  project: "${CI_REGISTRY_PROJECT}"
+  tag: "latest"
+
+# -- Backend Configuration --
+backend:
+  name: backend
+  replicaCount: 1
+  image:
+    name: "rateflix-backend"
+  service:
+    type: ClusterIP
+    port: 8080
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "100m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
+  # Probes configuration
+  probes:
+    managementPort: 8081
+    readiness:
+      path: /actuator/health/readiness
+      initialDelaySeconds: 45
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 6
+    liveness:
+      path: /actuator/health/liveness
+      initialDelaySeconds: 90
+      periodSeconds: 15
+      timeoutSeconds: 5
+      failureThreshold: 3
+  # Autoscaling configuration
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+
+# -- Frontend Configuration --
+frontend:
+  name: frontend
+  replicaCount: 1
+  image:
+    name: "rateflix-frontend"
+  service:
+    type: ClusterIP
+    port: 80
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "50m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+  # Probes configuration
+  probes:
+    readiness:
+      path: /
+      initialDelaySeconds: 10
+      periodSeconds: 5
+    liveness:
+      path: /
+      initialDelaySeconds: 30
+      periodSeconds: 30
+  # Autoscaling configuration
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 4
+    targetCPUUtilizationPercentage: 70
+
+# -- Redis Configuration --
+redis:
+  name: redis
+  enabled: true 
+  replicaCount: 3 
+  image:
+    name: "library/redis"
+    tag: "8.0.2"
+  service:
+    port: 6379
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "50m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+  persistence: # Added this section
+    storageClassName: "nfs-client"
+    size: "1Gi"
+
+# -- PostgreSQL HA Configuration --
+postgresHa:
+  enabled: true
+  name: postgres-ha
+  image:
+    name: "library/postgres"
+    tag: "17.5"
+  replicaCount: 3
+  dbName: "rateflix"
+  service:
+    port: 5432
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "250m"
+    limits:
+      memory: "2Gi"
+      cpu: "1000m"
+  persistence:
+    storageClassName: "nfs-client"
+    size: "10Gi"
+  secret:
+    dbUsername: "${DB_USERNAME}"
+    dbPassword: "${DB_PASSWORD}"
+    replicationPassword: "${DB_REPLICATION_PASSWORD}"
+
+
+# -- Ingress Configuration --
+ingress:
+  enabled: true
+  host: "${TEST_INGRESS_SUBDOMAIN}.${INGRESS_BASE_HOST}"
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+  paths:
+    backend: /api
+    frontend: /
+
+# -- Application Configuration (for ConfigMap and Secrets) --
+config:
+  springProfile: "postgres-ha"
+  redisPort: "6379"
+  contextPath: ""
+  managementPort: "8081"
+  probesEnabled: "true"
+  jwtSecret: "${JWT_SECRET}"
+  rootUsername: "${ROOT_USERNAME}"
+  rootPassword: "${APP_ROOT_PASSWORD}"
+
+dataInit:
+  enabled: true

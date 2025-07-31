@@ -1,0 +1,50 @@
+frontend_tests:
+  stage: unit_tests
+  image: "${CI_REGISTRY_URL}/${CI_REGISTRY_CACHE}/library/node:20-alpine"
+  needs:
+    - job: check_release_version
+    - job: frontend_lint
+  
+  before_script:
+    - cd frontend
+    - npm ci
+    
+  script:
+    - echo "Running frontend tests..."
+    - npm run test -- --coverage --run
+    
+  artifacts:
+    when: always
+    paths:
+      - frontend/coverage/
+    expire_in: 1 week
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: frontend/coverage/cobertura-coverage.xml
+    
+  coverage: '/All files[^|]*\|[^|]*\s+([\d\.]+)/'
+  
+  rules:
+    - if: '$BUILD_TOOL_IMAGES != "true"'
+      exists:
+        - frontend/package.json
+
+frontend_lint:
+  stage: unit_tests
+  image: "${CI_REGISTRY_URL}/${CI_REGISTRY_CACHE}/library/node:20-alpine"
+  needs:
+    - job: check_release_version
+  
+  before_script:
+    - cd frontend
+    - npm ci
+    
+  script:
+    - echo "Running frontend linting..."
+    - npm run lint
+    
+  rules:
+    - if: '$BUILD_TOOL_IMAGES != "true"'
+      exists:
+        - frontend/package.json

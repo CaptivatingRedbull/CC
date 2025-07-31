@@ -1,0 +1,120 @@
+# Default values for rateflix-monitoring
+# This monitoring stack is designed to be completely namespace-scoped
+
+# Image registry configuration (follows same pattern as Rateflix chart)
+image:
+  registry: "${CI_REGISTRY_URL}"
+  cache: "${CI_REGISTRY_CACHE}"
+  project: "${CI_REGISTRY_PROJECT}"
+
+# Rateflix release name for connecting to services
+rateflixReleaseName: "rateflix"
+
+prometheus:
+  name: prometheus
+  replicaCount: 1
+  image:
+    name: "prom/prometheus"
+    tag: "v2.47.2"
+    pullPolicy: IfNotPresent
+  
+  service:
+    type: ClusterIP
+    port: 9090
+  
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+  
+  # Retention and storage
+  retention: "7d"
+  storage:
+    enabled: true
+    storageClass: "nfs-client"  # Adjust based on your cluster
+    size: "5Gi"
+
+grafana:
+  name: grafana
+  replicaCount: 1
+  image:
+    name: "grafana/grafana"
+    tag: "10.2.0"
+    pullPolicy: IfNotPresent
+  
+  service:
+    type: ClusterIP
+    port: 3000
+  
+  # Ingress configuration for external access
+  ingress:
+    enabled: true
+    className: "nginx"
+    host: "${MONITORING_INGRESS_SUBDOMAIN}.${INGRESS_BASE_HOST}"
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+      nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
+      nginx.ingress.kubernetes.io/rewrite-target: "/"
+  
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "300m"
+  
+  # Grafana admin credentials
+  admin:
+    user: "${GRAFANA_ADMIN_USER}"
+    password: "${GRAFANA_ADMIN_PASSWORD}"
+  
+  # Persistent storage for dashboards and settings
+  persistence:
+    enabled: true
+    storageClass: "nfs-client"  # Adjust based on your cluster
+    size: "2Gi"
+  
+  # Data sources (Prometheus only)
+  datasources:
+    prometheus:
+      name: Prometheus
+      type: prometheus
+      access: proxy
+      isDefault: true
+
+  # Pre-configured dashboards
+  dashboards:
+    enabled: true
+    # We'll include some basic dashboards for monitoring
+
+# Kube-state-metrics configuration
+kubeStateMetrics:
+  name: kube-state-metrics
+  replicaCount: 1
+  image:
+    name: "registry.k8s.io/kube-state-metrics/kube-state-metrics"
+    tag: "v2.10.1"
+    pullPolicy: IfNotPresent
+  
+  service:
+    type: ClusterIP
+    port: 8080
+    telemetryPort: 8081
+  
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "10m"
+    limits:
+      memory: "128Mi"
+      cpu: "100m"
+
+# Security context
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 65534
+  fsGroup: 65534

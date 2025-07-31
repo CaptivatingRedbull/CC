@@ -1,0 +1,38 @@
+{{- if .Values.redis.enabled -}}
+# Headless Service for StatefulSet DNS
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{ .Release.Name }}-redis-ha-headless"
+spec:
+  clusterIP: None
+  selector:
+    app: {{ .Release.Name }}-redis-ha
+  ports:
+    - name: redis
+      protocol: TCP
+      port: 6379
+      targetPort: 6379
+    - name: metrics
+      protocol: TCP
+      port: 9121
+      targetPort: 9121
+---
+# Regular Service for application access
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{ .Release.Name }}-redis-ha-service"
+spec:
+  selector:
+    app: {{ .Release.Name }}-redis-ha
+  ports:
+    - name: redis
+      protocol: TCP
+      port: 6379
+      targetPort: 6379
+    - name: metrics
+      protocol: TCP
+      port: 9121
+      targetPort: 9121
+{{- end }}

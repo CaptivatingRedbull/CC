@@ -1,0 +1,68 @@
+backend_unit_tests:
+  stage: unit_tests
+  image: "${CI_REGISTRY_URL}/${CI_REGISTRY_CACHE}/library/maven:3.9-eclipse-temurin-21"
+  needs:
+    - job: check_release_version
+  
+  before_script:
+    - cd backend
+    
+  script:
+    - echo "Running backend unit tests with mocked dependencies..."
+    - mvn clean test -P unit-tests
+    
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - backend/target/surefire-reports/TEST-*.xml
+    paths:
+      - backend/target/surefire-reports/
+    expire_in: 1 week
+    
+  coverage: '/Total.*?([0-9]{1,3})%/'
+  
+  rules:
+    - if: '$BUILD_TOOL_IMAGES != "true"'
+
+backend_integration_tests:
+  stage: integration_tests
+  image: "${CI_REGISTRY_URL}/${CI_REGISTRY_CACHE}/library/maven:3.9-eclipse-temurin-21"
+  needs:
+    - job: check_release_version
+    - job: backend_unit_tests
+  
+  variables:
+    SPRING_DATA_REDIS_HOST: redis
+    SPRING_DATA_REDIS_PORT: 6379
+    SPRING_DATA_REDIS_TIMEOUT: 2000ms
+  
+  services:
+    - name: "${CI_REGISTRY_URL}/${CI_REGISTRY_CACHE}/library/redis:7-alpine"
+      alias: redis
+      
+  before_script:
+    - cd backend
+    - echo "Installing Redis tools for health check..."
+    - apt-get update && apt-get install -y redis-tools
+    - echo "Waiting for Redis to be ready..."
+    - timeout 30 bash -c 'until redis-cli -h redis ping; do echo "Waiting for Redis..."; sleep 1; done'
+    - echo "Redis is ready!"
+    
+  script:
+    - echo "Running backend integration tests with real Redis..."
+    - mvn clean test -P integration-tests
+    
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - backend/target/surefire-reports/TEST-*.xml
+    paths:
+      - backend/target/surefire-reports/
+    expire_in: 1 week
+    
+  coverage: '/Total.*?([0-9]{1,3})%/'
+  
+  rules:
+    - if: '$BUILD_TOOL_IMAGES != "true"'

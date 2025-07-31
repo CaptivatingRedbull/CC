@@ -1,0 +1,53 @@
+{{- if .Values.redis.enabled -}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: "{{ .Release.Name }}-redis-ha"
+spec:
+  serviceName: "{{ .Release.Name }}-redis-ha-headless"
+  replicas: {{ .Values.redis.replicaCount }}
+  selector:
+    matchLabels:
+      app: "{{ .Release.Name }}-redis-ha"
+  template:
+    metadata:
+      labels:
+        app: "{{ .Release.Name }}-redis-ha"
+    spec:
+      containers:
+      - name: redis-ha
+        image: "{{ .Values.image.registry }}/{{ .Values.image.cache }}/{{ .Values.redis.image.name }}:{{ .Values.redis.image.tag }}"
+        ports:
+        - containerPort: 6379
+          name: redis
+        resources:
+          {{- toYaml .Values.redis.resources | nindent 10 }}
+        volumeMounts:
+        - name: data
+          mountPath: /data
+      # Redis Exporter for metrics
+      - name: redis-exporter
+        image: oliver006/redis_exporter:v1.58.0
+        ports:
+        - containerPort: 9121
+          name: metrics
+        env:
+        - name: REDIS_ADDR
+          value: "redis://localhost:6379"
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "25m"
+          limits:
+            memory: "64Mi"
+            cpu: "50m"
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: {{ .Values.redis.persistence.storageClassName }}
+      resources:
+        requests:
+          storage: {{ .Values.redis.persistence.size }}
+{{- end }}

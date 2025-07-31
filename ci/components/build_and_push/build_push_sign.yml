@@ -1,0 +1,28 @@
+include:
+  - local: '/ci/templates/build_push_sign_template.yml'
+
+build_push_sign:
+  extends: .build_push_sign_template
+  needs:
+    - job: release_version
+      artifacts: true
+    - job: backend_unit_tests
+    - job: backend_integration_tests
+    - job: frontend_tests
+    - job: frontend_lint
+  parallel:
+    matrix:
+      - NAME: backend
+        IMAGE_NAME: $IMAGE_BACKEND_NAME
+        DOCKERFILE: backend.dockerfile
+      - NAME: frontend
+        IMAGE_NAME: $IMAGE_FRONTEND_NAME
+        DOCKERFILE: frontend.dockerfile
+  before_script:
+    - ImageVersion=$(cat release_version.txt)
+    - echo "Image version is ${ImageVersion}"
+    - export IMAGE_TAG="${ImageVersion}"
+  after_script:
+    - echo "Oras logging in to registry ${CI_REGISTRY_URL}"
+    - echo "${CI_REGISTRY_PASSWORD}" | oras login "${CI_REGISTRY_URL}" -u "${CI_REGISTRY_USERNAME}" --password-stdin
+    - oras tag "${FULL_IMAGE_NAME}@${DIGEST}" latest

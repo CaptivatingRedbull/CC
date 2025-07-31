@@ -71,6 +71,7 @@ export function CreateContentDialog({ open, onOpenChange, onSuccess }: CreateCon
                 kind: kind as Kind,
                 upVote: 0,
                 downVote: 0,
+                score: 0,
             });
 
             onSuccess();

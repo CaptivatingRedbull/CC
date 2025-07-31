@@ -1,5 +1,6 @@
 package haw.rateflix.controller;
 
+import haw.rateflix.categories.IntegrationTest;
 import haw.rateflix.domain.Content;
 import haw.rateflix.domain.Kind;
 import haw.rateflix.domain.User;
@@ -23,12 +24,15 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.ActiveProfiles;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_EACH_TEST_METHOD)
 @DisplayName("Content Controller Integration Tests")
+@IntegrationTest
+@ActiveProfiles("integration-test")
 class ContentControllerTest {
 
     @LocalServerPort

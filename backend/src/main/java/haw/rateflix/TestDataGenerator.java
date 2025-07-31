@@ -1,6 +1,9 @@
 package haw.rateflix;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.SpringApplication;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -16,10 +19,25 @@ import java.util.List;
 @Profile("testData")
 public class TestDataGenerator {
 
+    @Value("${app.run-and-exit:false}")
+    private boolean runAndExit;
+
     @Bean
-    public CommandLineRunner generateTestData(ContentRepository contentRepository) {
+    public CommandLineRunner generateTestData(ContentRepository contentRepository, ApplicationContext context) {
         return args -> {
-            List<Content> contentList = new ArrayList<>();
+            try {
+                // Only generate if no data exists
+                if (contentRepository.count() > 0) {
+                    System.out.println("Test data already exists. Skipping generation.");
+                    if (runAndExit) {
+                        System.out.println("Exiting application as requested.");
+                        System.exit(SpringApplication.exit(context, () -> 0));
+                    }
+                    return;
+                }
+                
+                System.out.println("Generating test data...");
+                List<Content> contentList = new ArrayList<>();
 
             // Movies
             contentList.add(new Content(Kind.MOVIE, "The Godfather",
@@ -170,8 +188,22 @@ public class TestDataGenerator {
                     "Anthology series in which police investigations unearth personal and professional secrets of those involved.",
                     2014, 110, 4));
 
-            
             contentRepository.saveAll(contentList);
+            System.out.println("Test data generation completed. " + contentList.size() + " items created.");
+            
+            // Exit the application if requested
+            if (runAndExit) {
+                System.out.println("Exiting application as requested.");
+                System.exit(SpringApplication.exit(context, () -> 0));
+            }
+        } catch (Exception e) {
+            System.err.println("Error during test data generation: " + e.getMessage());
+            e.printStackTrace();
+            if (runAndExit) {
+                System.exit(SpringApplication.exit(context, () -> 1));
+            }
+            throw e;
+        }
         };
     }
 }

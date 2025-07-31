@@ -1,0 +1,128 @@
+deploy_p_system:
+  stage: deploy_p_system
+  image: "${CI_REGISTRY_URL}/${CI_REGISTRY_PROJECT}/kubectl:latest"
+  needs:
+    - job: build_push_sign
+    - job: check_release_version
+    - job: backend_unit_tests
+    - job: backend_integration_tests
+    - job: frontend_tests
+    - job: frontend_lint
+    - job: release_version
+      artifacts: true
+  script:
+    - echo "Deploying to Production (P-System) using Helm..."
+    # Create kubeconfig from environment variable if it's base64 encoded
+    - |
+      if [ -n "$KUBECONFIG" ]; then
+        echo "Using KUBECONFIG from environment variable"
+        echo "$KUBECONFIG" | base64 -d > ./kubeconfig
+        export KUBECONFIG=$(pwd)/kubeconfig
+      elif [ -f "./ci/components/deploy/k8s.yaml" ]; then
+        echo "Using kubeconfig from file"
+        export KUBECONFIG=./ci/components/deploy/k8s.yaml
+      else
+        echo "No kubeconfig found!"
+        exit 1
+      fi
+    - RELEASE_VERSION=$(cat release_version.txt)
+    - echo "CI_REGISTRY_URL=$CI_REGISTRY_URL"
+    - echo "CI_REGISTRY_CACHE=$CI_REGISTRY_CACHE"
+    - echo "CI_REGISTRY_PROJECT=$CI_REGISTRY_PROJECT"
+    - echo "IMAGE_BACKEND_NAME=$IMAGE_BACKEND_NAME" 
+    - echo "IMAGE_FRONTEND_NAME=$IMAGE_FRONTEND_NAME"
+    - echo "RELEASE_VERSION=$RELEASE_VERSION"
+    - echo "DB_NAME=$DB_NAME"
+    - echo "DB_USERNAME=$DB_USERNAME"
+    - echo "DB_REPLICATION_PASSWORD=$DB_REPLICATION_PASSWORD"
+    - echo "ROOT_USERNAME=$ROOT_USERNAME"
+    - echo "INGRESS_BASE_HOST=$INGRESS_BASE_HOST"
+    - echo "PROD_INGRESS_SUBDOMAIN=$PROD_INGRESS_SUBDOMAIN"
+    
+    # Set Helm values for production deployment
+    - export INGRESS_FULL_HOST="${PROD_INGRESS_SUBDOMAIN}.${INGRESS_BASE_HOST}"
+    - echo "Full ingress host $INGRESS_FULL_HOST"
+    
+    # Deploy using Helm with PostgreSQL HA and production values
+    - |
+      helm upgrade --install $RELEASE_NAME $HELM_CHART_PATH \
+        --namespace ${KUBE_NAMESPACE_PROD} \
+        --create-namespace \
+        --values ./ci/k8s/rateflix/values-prod.yaml \
+        --set image.registry="$CI_REGISTRY_URL" \
+        --set image.cache="$CI_REGISTRY_CACHE" \
+        --set image.project="$CI_REGISTRY_PROJECT" \
+        --set image.tag="$RELEASE_VERSION" \
+        --set backend.image.name="$IMAGE_BACKEND_NAME" \
+        --set frontend.image.name="$IMAGE_FRONTEND_NAME" \
+        --set postgresHa.dbName="$DB_NAME" \
+        --set postgresHa.secret.dbUsername="$DB_USERNAME" \
+        --set postgresHa.secret.dbPassword="$DB_PASSWORD" \
+        --set postgresHa.secret.replicationPassword="$DB_REPLICATION_PASSWORD" \
+        --set redis.secret.password="$REDIS_PASSWORD" \
+        --set config.jwtSecret="$JWT_SECRET" \
+        --set config.rootUsername="$ROOT_USERNAME" \
+        --set config.rootPassword="$APP_ROOT_PASSWORD" \
+        --set ingress.host="$INGRESS_FULL_HOST" \
+        --set dataInit.enabled=false \
+        --wait --timeout=900s
+    
+    - echo "Helm production deployment completed successfully"
+    
+    # Verify deployment status
+    - echo "Verifying production deployment status..."
+    - kubectl get pods -n ${KUBE_NAMESPACE_PROD} -l app.kubernetes.io/instance=$RELEASE_NAME
+    - kubectl get services -n ${KUBE_NAMESPACE_PROD} -l app.kubernetes.io/instance=$RELEASE_NAME
+    - kubectl get ingress -n ${KUBE_NAMESPACE_PROD} -l app.kubernetes.io/instance=$RELEASE_NAME
+
+  rules:
+    - when: manual
+      if: '$CI_COMMIT_BRANCH == "main"'
+
+deploy_monitoring_p_system:
+  stage: deploy_p_system
+  image: "${CI_REGISTRY_URL}/${CI_REGISTRY_PROJECT}/kubectl:latest"
+  needs:
+    - job: deploy_p_system
+  script:
+    - echo "Deploying monitoring stack to Production (P-System)..."
+    # Setup kubeconfig
+    - |
+      if [ -n "$KUBECONFIG" ]; then
+        echo "Using KUBECONFIG from environment variable"
+        echo "$KUBECONFIG" | base64 -d > ./kubeconfig
+        export KUBECONFIG=$(pwd)/kubeconfig
+      elif [ -f "./ci/components/deploy/k8s.yaml" ]; then
+        echo "Using kubeconfig from file"
+        export KUBECONFIG=./ci/components/deploy/k8s.yaml
+      else
+        echo "No kubeconfig found!"
+        exit 1
+      fi
+    
+    # Deploy monitoring stack with production settings
+    - |
+      helm upgrade --install monitoring-$RELEASE_NAME ./ci/k8s/monitoring \
+        --namespace ${KUBE_NAMESPACE_PROD} \
+        --set image.registry="$CI_REGISTRY_URL" \
+        --set image.cache="$CI_REGISTRY_CACHE" \
+        --set image.project="$CI_REGISTRY_PROJECT" \
+        --set grafana.ingress.host="${MONITORING_INGRESS_SUBDOMAIN}.${INGRESS_BASE_HOST}" \
+        --set grafana.admin.user="$GRAFANA_ADMIN_USER" \
+        --set grafana.admin.password="$GRAFANA_ADMIN_PASSWORD" \
+        --set prometheus.retention="30d" \
+        --set prometheus.storage.size="20Gi" \
+        --set prometheus.resources.requests.memory="1Gi" \
+        --set prometheus.resources.limits.memory="2Gi" \
+        --set grafana.persistence.size="5Gi" \
+        --set rateflixReleaseName="$RELEASE_NAME" \
+        --wait --timeout=600s
+    
+    - echo "Production monitoring deployment completed"
+    - kubectl get pods -n ${KUBE_NAMESPACE_PROD} -l app.kubernetes.io/instance=monitoring-$RELEASE_NAME
+    - echo "Production Grafana URL https://${MONITORING_INGRESS_SUBDOMAIN}.${INGRESS_BASE_HOST}"
+    - echo "Admin credentials $GRAFANA_ADMIN_USER / $GRAFANA_ADMIN_PASSWORD"
+
+  rules:
+    - when: manual
+      if: '$CI_COMMIT_BRANCH == "main"'

@@ -1,0 +1,87 @@
+{{- if .Values.postgresHa.enabled -}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: "{{ .Release.Name }}-postgres-ha"
+spec:
+  serviceName: "{{ .Release.Name }}-postgres-ha-headless"
+  replicas: {{ .Values.postgresHa.replicaCount }}
+  selector:
+    matchLabels:
+      app: "{{ .Release.Name }}-postgres-ha"
+  template:
+    metadata:
+      labels:
+        app: "{{ .Release.Name }}-postgres-ha"
+    spec:
+      containers:
+      - name: postgres-ha
+        image: "{{ .Values.image.registry }}/{{ .Values.image.cache }}/{{ .Values.postgresHa.image.name }}:{{ .Values.postgresHa.image.tag }}"
+        ports:
+        - containerPort: 5432
+          name: postgres
+        resources:
+          {{- toYaml .Values.postgresHa.resources | nindent 10 }}
+        env:
+        - name: POSTGRES_DB
+          value: {{ .Values.postgresHa.dbName | quote }}
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: "{{ .Release.Name }}-postgres-ha-secret"
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: "{{ .Release.Name }}-postgres-ha-secret"
+              key: POSTGRES_PASSWORD
+        - name: PGDATA
+          value: "/var/lib/postgresql/data/pgdata"
+        - name: REPLICATION_USER
+          value: "replicator"
+        - name: REPLICATION_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: "{{ .Release.Name }}-postgres-ha-secret"
+              key: POSTGRES_REPLICATION_PASSWORD
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+      # PostgreSQL Exporter for metrics
+      - name: postgres-exporter
+        image: prometheuscommunity/postgres-exporter:v0.15.0
+        ports:
+        - containerPort: 9187
+          name: metrics
+        env:
+        - name: DATA_SOURCE_NAME
+          value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@localhost:5432/$(POSTGRES_DB)?sslmode=disable"
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: "{{ .Release.Name }}-postgres-ha-secret"
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: "{{ .Release.Name }}-postgres-ha-secret"
+              key: POSTGRES_PASSWORD
+        - name: POSTGRES_DB
+          value: {{ .Values.postgresHa.dbName | quote }}
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: {{ .Values.postgresHa.persistence.storageClassName }}
+      resources:
+        requests:
+          storage: {{ .Values.postgresHa.persistence.size }}
+{{- end }}

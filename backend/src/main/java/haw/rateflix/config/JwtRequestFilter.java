@@ -44,6 +44,13 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             @NonNull FilterChain chain)
             throws ServletException, IOException {
 
+        // Skip JWT processing for actuator endpoints
+        String requestPath = request.getRequestURI();
+        if (requestPath.startsWith("/actuator/")) {
+            chain.doFilter(request, response);
+            return;
+        }
+
         final String requestTokenHeader = request.getHeader("Authorization");
 
         String username = null;

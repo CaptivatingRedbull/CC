@@ -1,25 +1,84 @@
 deploy_t_system:
-  stage: deploy_t
-  image:
-    name: alpine/helm:latest
-    entrypoint: [""]
-  needs: ["push_backend", "push_frontend"]
+  stage: deploy_t_system
+  image: "${CI_REGISTRY_URL}/${CI_REGISTRY_PROJECT}/kubectl:latest"
+  needs:
+    - job: build_push_sign
+    - job: check_release_version
+    - job: backend_unit_tests
+    - job: backend_integration_tests
+    - job: frontend_tests
+    - job: frontend_lint
+    - job: release_version
+      artifacts: true
   script:
-    - echo "Deploying to Testing (T-System)..."
+    - echo "Deploying to Testing (T-System) using Helm..."
+    # Create kubeconfig from environment variable if it's base64 encoded
     - |
-      helm upgrade --install rateflix-t-release ./ci/k8s/helm/rateflix \
-      --namespace ${KUBE_NAMESPACE_TESTING} \
-      --create-namespace \
-      --atomic \
-      -f ./k8s/helm/rateflix/values-t-system.yaml \
-      --set frontend.image.repository="${HARBOR_REGISTRY_URL}/${IMAGE_FRONTEND_NAME}" \
-      --set frontend.image.tag="${CI_COMMIT_SHORT_SHA}" \
-      --set backend.image.repository="${HARBOR_REGISTRY_URL}/${IMAGE_BACKEND_NAME}" \
-      --set backend.image.tag="${CI_COMMIT_SHORT_SHA}" \
-      --set-string postgresql.auth.password="${POSTGRES_PASSWORD}" \
-      --set-string redis.auth.password="${REDIS_PASSWORD}" \
-      --set-string backend.env.jwtSecret="${JWT_SECRET}" \
-      --set-string backend.env.appRootPassword="${APP_ROOT_PASSWORD}"
+      if [ -n "$KUBECONFIG" ]; then
+        echo "Using KUBECONFIG from environment variable"
+        echo "$KUBECONFIG" | base64 -d > ./kubeconfig
+        export KUBECONFIG=$(pwd)/kubeconfig
+      elif [ -f "./ci/components/deploy/k8s.yaml" ]; then
+        echo "Using kubeconfig from file"
+        export KUBECONFIG=./ci/components/deploy/k8s.yaml
+      else
+        echo "No kubeconfig found!"
+        exit 1
+      fi
+    - RELEASE_VERSION=$(cat release_version.txt)
+    - echo "CI_REGISTRY_URL=$CI_REGISTRY_URL"
+    - echo "CI_REGISTRY_CACHE=$CI_REGISTRY_CACHE"
+    - echo "CI_REGISTRY_PROJECT=$CI_REGISTRY_PROJECT"
+    - echo "IMAGE_BACKEND_NAME=$IMAGE_BACKEND_NAME" 
+    - echo "IMAGE_FRONTEND_NAME=$IMAGE_FRONTEND_NAME"
+    - echo "RELEASE_VERSION=$RELEASE_VERSION"
+    - echo "DB_NAME=$DB_NAME"
+    - echo "DB_USERNAME=$DB_USERNAME"
+    - echo "DB_REPLICATION_PASSWORD=$DB_REPLICATION_PASSWORD"
+    - echo "ROOT_USERNAME=$ROOT_USERNAME"
+    - echo "INGRESS_BASE_HOST=$INGRESS_BASE_HOST"
+    - echo "TEST_INGRESS_SUBDOMAIN=$TEST_INGRESS_SUBDOMAIN"
+    
+    # Set Helm values for deployment
+    - export INGRESS_FULL_HOST="${TEST_INGRESS_SUBDOMAIN}.${INGRESS_BASE_HOST}"
+    - echo "Full ingress host $INGRESS_FULL_HOST"
+    
+    # Deploy using Helm with PostgreSQL HA
+    - |
+      helm upgrade --install $RELEASE_NAME $HELM_CHART_PATH \
+        --namespace ${KUBE_NAMESPACE_TESTING} \
+        --create-namespace \
+        --set image.registry="$CI_REGISTRY_URL" \
+        --set image.cache="$CI_REGISTRY_CACHE" \
+        --set image.project="$CI_REGISTRY_PROJECT" \
+        --set image.tag="$RELEASE_VERSION" \
+        --set backend.image.name="$IMAGE_BACKEND_NAME" \
+        --set frontend.image.name="$IMAGE_FRONTEND_NAME" \
+        --set postgresHa.dbName="$DB_NAME" \
+        --set postgresHa.secret.dbUsername="$DB_USERNAME" \
+        --set postgresHa.secret.dbPassword="$DB_PASSWORD" \
+        --set postgresHa.secret.replicationPassword="$DB_REPLICATION_PASSWORD" \
+        --set redis.secret.password="$REDIS_PASSWORD" \
+        --set config.jwtSecret="$JWT_SECRET" \
+        --set config.rootUsername="$ROOT_USERNAME" \
+        --set config.rootPassword="$APP_ROOT_PASSWORD" \
+        --set ingress.host="$INGRESS_FULL_HOST" \
+        --set dataInit.enabled=true \
+        --wait --timeout=600s
+    
+    - echo "Helm deployment completed successfully"
+    
+    # Wait for data initialization job to complete if it was created
+    - echo "Checking if data initialization job was created..."
+    - |
+      if kubectl get job $RELEASE_NAME-data-init -n ${KUBE_NAMESPACE_TESTING} 2>/dev/null; then
+        echo "Data initialization job found, waiting for completion..."
+        kubectl wait --for=condition=complete job/$RELEASE_NAME-data-init -n ${KUBE_NAMESPACE_TESTING} --timeout=300s
+        echo "Data initialization completed successfully"
+        kubectl logs job/$RELEASE_NAME-data-init -n ${KUBE_NAMESPACE_TESTING}
+      else
+        echo "No data initialization job found (dataInit may be disabled)"
+      fi
+
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
-      when: manual

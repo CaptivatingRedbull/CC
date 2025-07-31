@@ -1,0 +1,30 @@
+include:
+  - local: '/ci/templates/build_push_sign_template.yml'
+
+build_tool_images:
+  extends: .build_push_sign_template
+  parallel:
+    matrix:
+      - NAME: alpine-tools
+        IMAGE_NAME: alpine-tools
+        DOCKERFILE: alpine-tools.dockerfile
+        IMAGE_TAG: latest
+      - NAME: image-build-push-sign
+        IMAGE_NAME: image-build-push-sign
+        DOCKERFILE: image-build-push-sign.dockerfile
+        IMAGE_TAG: latest
+      - NAME: kubectl
+        IMAGE_NAME: kubectl
+        DOCKERFILE: kubectl.dockerfile
+        IMAGE_TAG: latest
+      - NAME: release
+        IMAGE_NAME: release
+        DOCKERFILE: release.dockerfile
+        IMAGE_TAG: latest
+
+  rules:
+    - if: '$BUILD_TOOL_IMAGES == "true" && $IMAGE_LIST == "all"'
+      when: always
+    - if: '$BUILD_TOOL_IMAGES == "true" && $IMAGE_LIST == $NAME'
+      when: always
+    - when: never

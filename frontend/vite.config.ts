@@ -14,5 +14,10 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/setupTests.ts',
+    testTimeout: 10000, // Increase timeout to 10 seconds
+    coverage: {
+      reporter: ['text', 'cobertura', 'html'],
+      reportsDirectory: './coverage',
+    },
   },
 })

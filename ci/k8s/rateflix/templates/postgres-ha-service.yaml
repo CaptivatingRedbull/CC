@@ -1,0 +1,38 @@
+{{- if .Values.postgresHa.enabled -}}
+# Headless Service for StatefulSet DNS
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{ .Release.Name }}-postgres-ha-headless"
+spec:
+  clusterIP: None
+  selector:
+    app: {{ .Release.Name }}-postgres-ha
+  ports:
+    - name: postgres
+      protocol: TCP
+      port: 5432
+      targetPort: 5432
+    - name: metrics
+      protocol: TCP
+      port: 9187
+      targetPort: 9187
+---
+# Regular Service for application access
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{ .Release.Name }}-postgres-ha-service"
+spec:
+  selector:
+    app: "{{ .Release.Name }}-postgres-ha"
+  ports:
+    - name: postgres
+      protocol: TCP
+      port: 5432
+      targetPort: 5432
+    - name: metrics
+      protocol: TCP
+      port: 9187
+      targetPort: 9187
+{{- end }}

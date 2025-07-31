@@ -280,13 +280,7 @@ export function ContentPage({ adminExtension, refreshTrigger = 0, onLoginClick, 
                                             <ArrowUp className="h-5 w-5" />
                                         </Button>
                                         <span className="font-bold text-lg w-10 text-center select-none">
-                                            {typeof item.upVote === "number" && typeof item.downVote === "number"
-                                                ? item.upVote - item.downVote
-                                                : typeof item.upVote === "number"
-                                                    ? item.upVote
-                                                    : typeof item.downVote === "number"
-                                                        ? -item.downVote
-                                                        : 0}
+                                            {item.score}
                                         </span>
                                         <Button variant="ghost" size="icon" className="text-red-600 hover:text-red-700 hover:bg-red-100" onClick={() => handleVote(item.id, 'down')}>
                                             <ArrowDown className="h-5 w-5" />

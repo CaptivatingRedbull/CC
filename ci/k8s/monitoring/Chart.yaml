@@ -1,0 +1,9 @@
+apiVersion: v2
+name: rateflix-monitoring
+description: A namespace-scoped monitoring solution with Prometheus and Grafana for Rateflix
+type: application
+version: 0.1.0
+appVersion: "1.0"
+maintainers:
+  - name: Marlon Schöffend
+    email: marlon.schoeffend@example.com

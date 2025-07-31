@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "monitoring.fullname" . }}-prometheus
+  labels:
+    {{- include "prometheus.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.prometheus.replicaCount }}
+  strategy:
+    type: Recreate  # Ensures old pod is terminated before new one starts
+  selector:
+    matchLabels:
+      {{- include "prometheus.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "prometheus.selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/prometheus-configmap.yaml") . | sha256sum }}
+    spec:
+      terminationGracePeriodSeconds: 30  # Give Prometheus time to shutdown gracefully
+      securityContext:
+        {{- toYaml .Values.securityContext | nindent 8 }}
+      containers:
+        - name: prometheus
+          image: "{{ .Values.image.registry }}/{{ .Values.image.cache }}/{{ .Values.prometheus.image.name }}:{{ .Values.prometheus.image.tag }}"
+          imagePullPolicy: {{ .Values.prometheus.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 9090
+              protocol: TCP
+          args:
+            - '--config.file=/etc/prometheus/prometheus.yml'
+            - '--storage.tsdb.path=/prometheus/'
+            - '--web.console.libraries=/etc/prometheus/console_libraries'
+            - '--web.console.templates=/etc/prometheus/consoles'
+            - '--storage.tsdb.retention.time={{ .Values.prometheus.retention }}'
+            - '--web.enable-lifecycle'
+            - '--web.enable-admin-api'
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 15"]  # Give time for graceful shutdown
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 4
+          resources:
+            {{- toYaml .Values.prometheus.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus/prometheus.yml
+              subPath: prometheus.yml
+            {{- if .Values.prometheus.storage.enabled }}
+            - name: storage
+              mountPath: /prometheus
+            {{- end }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "monitoring.fullname" . }}-prometheus-config
+        {{- if .Values.prometheus.storage.enabled }}
+        - name: storage
+          persistentVolumeClaim:
+            claimName: {{ include "monitoring.fullname" . }}-prometheus-storage
+        {{- end }}

@@ -7,8 +7,8 @@ import type { Page, Content } from '@/utils/types';
 vi.mock('@/api/contentApi');
 
 const mockContent: Content[] = [
-  { id: 1, title: 'Movie A', description: 'Desc A', year: 2021, kind: 'MOVIE', upVote: 10, downVote: 2 },
-  { id: 2, title: 'Series B', description: 'Desc B', year: 2022, kind: 'SERIES', upVote: 20, downVote: 5 },
+  { id: 1, title: 'Movie A', description: 'Desc A', year: 2021, kind: 'MOVIE', upVote: 10, downVote: 2, score: 8 },
+  { id: 2, title: 'Series B', description: 'Desc B', year: 2022, kind: 'SERIES', upVote: 20, downVote: 5, score: 15 },
 ];
 
 const mockPage: Page<Content> = {

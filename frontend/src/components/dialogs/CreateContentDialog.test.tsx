@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CreateContentDialog } from './CreateContentDialog';
@@ -48,7 +48,7 @@ describe('CreateContentDialog', () => {
 
   it('calls the createContent API on successful submission', async () => {
     const user = userEvent.setup();
-    vi.mocked(contentApi.createContent).mockResolvedValueOnce({} as any);
+    vi.mocked(contentApi.createContent).mockResolvedValueOnce({} as Awaited<ReturnType<typeof contentApi.createContent>>);
     render(<CreateContentDialog open={true} onOpenChange={mockOnOpenChange} onSuccess={mockOnSuccess} />);
     
     await user.type(screen.getByLabelText('Title'), 'New Movie');
@@ -66,6 +66,7 @@ describe('CreateContentDialog', () => {
         kind: 'MOVIE',
         upVote: 0,
         downVote: 0,
+        score: 0,
       });
     });
     expect(mockOnSuccess).toHaveBeenCalled();
@@ -78,7 +79,9 @@ describe('CreateContentDialog', () => {
     render(<CreateContentDialog open={true} onOpenChange={mockOnOpenChange} onSuccess={mockOnSuccess} />);
 
     await user.type(screen.getByLabelText('Title'), 'Test Title');
-    await user.type(screen.getByLabelText('Description'), 'Test Description');
+    // Use fireEvent instead of user.type for problematic elements
+    const descriptionField = screen.getByLabelText('Description');
+    fireEvent.change(descriptionField, { target: { value: 'Test Description' } });
     await user.type(screen.getByLabelText('Release Year'), '2024');
     await user.click(screen.getByRole('combobox'));
     await user.click(await screen.findByText('Series'));

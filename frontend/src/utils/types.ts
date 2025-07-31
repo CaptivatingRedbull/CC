@@ -14,6 +14,7 @@ export interface Content {
   year: number;
   upVote: number;
   downVote: number;
+  score: number;
 }
 
 /**

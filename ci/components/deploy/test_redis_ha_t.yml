@@ -1,0 +1,83 @@
+test_redis_ha_failover:
+  stage: deploy_t_system
+  image: "${CI_REGISTRY_URL}/${CI_REGISTRY_PROJECT}/kubectl:latest"
+  needs:
+    - job: deploy_t_system
+  when: manual
+  before_script:
+    - apk add --no-cache redis
+  script:
+    - echo "Starting Redis HA Failover Test..."
+    - |
+      if [ -n "$KUBECONFIG" ]; then
+        echo "Using KUBECONFIG from environment variable"
+        echo "$KUBECONFIG" | base64 -d > ./kubeconfig
+        export KUBECONFIG=$(pwd)/kubeconfig
+      elif [ -f "./ci/components/deploy/k8s.yaml" ]; then
+        echo "Using kubeconfig from file"
+        export KUBECONFIG=./ci/components/deploy/k8s.yaml
+      else
+        echo "No kubeconfig found!"
+        exit 1
+      fi
+
+    - export NAMESPACE="${KUBE_NAMESPACE_TESTING}"
+    - export RELEASE_NAME="rateflix"
+    - export POD_SELECTOR="app=${RELEASE_NAME}-redis-ha"
+
+    - echo "Identifying current primary Redis pod..."
+    - |
+      PRIMARY_POD=""
+      for i in $(seq 0 2); do
+        POD_NAME="${RELEASE_NAME}-redis-ha-${i}"
+        echo "Checking pod ${POD_NAME}..."
+        ROLE=$(kubectl exec -n "${NAMESPACE}" "${POD_NAME}" -- redis-cli info replication | grep role | tr -d '\r')
+        if [ "$ROLE" = "role:master" ]; then
+          PRIMARY_POD="${POD_NAME}"
+          echo "Primary pod found: ${PRIMARY_POD}"
+          break
+        fi
+      done
+
+      if [ -z "${PRIMARY_POD}" ]; then
+        echo "Could not identify the primary pod. Aborting test."
+        exit 1
+      fi
+
+    - echo "Simulating failure by deleting the primary pod ${PRIMARY_POD}"
+    - kubectl delete pod -n "${NAMESPACE}" "${PRIMARY_POD}"
+
+    - echo "Waiting for the cluster to recover and for a new pod to become ready..."
+    - kubectl wait --for=condition=Ready pod -l "${POD_SELECTOR}" -n "${NAMESPACE}" --timeout=300s
+
+    - echo "Cluster has recovered."
+    - echo "Verifying the new primary pod..."
+    - |
+      NEW_PRIMARY_FOUND=false
+      for i in $(seq 0 2); do
+        POD_NAME="${RELEASE_NAME}-redis-ha-${i}"
+        echo "Checking pod ${POD_NAME}..."
+        ROLE=$(kubectl exec -n "${NAMESPACE}" "${POD_NAME}" -- redis-cli info replication | grep role | tr -d '\r')
+        if [ "$ROLE" = "role:master" ]; then
+          echo "New primary pod is: ${POD_NAME}"
+          NEW_PRIMARY_FOUND=true
+          # Verify that we can write to the new primary
+          kubectl exec -n "${NAMESPACE}" "${POD_NAME}" -- redis-cli set failover-test success
+          VALUE=$(kubectl exec -n "${NAMESPACE}" "${POD_NAME}" -- redis-cli get failover-test)
+          if [ "$VALUE" = "success" ]; then
+            echo "Successfully wrote to new primary."
+          else
+            echo "Failed to write to new primary."
+            exit 1
+          fi
+          break
+        fi
+      done
+
+      if [ "$NEW_PRIMARY_FOUND" = false ]; then
+        echo "Failover test failed: No new primary pod was elected."
+        exit 1
+      fi
+
+    - echo "HA Failover Test Successful!"
+

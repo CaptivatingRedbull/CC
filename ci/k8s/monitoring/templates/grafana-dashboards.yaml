@@ -1,0 +1,338 @@
+{{- if .Values.grafana.dashboards.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "monitoring.fullname" . }}-grafana-dashboards
+  labels:
+    {{- include "grafana.labels" . | nindent 4 }}
+    grafana_dashboard: "1"
+data:
+  rateflix-overview.json: |
+    {
+      "id": null,
+      "title": "Rateflix Application Overview",
+      "tags": ["rateflix", "overview"],
+      "timezone": "browser",
+      "panels": [
+        {
+          "id": 1,
+          "title": "Backend HTTP Requests per Second",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "rate(http_server_requests_seconds_count{job=\"rateflix-backend\"}[5m])",
+              "legendFormat": "RPS"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps"
+            }
+          },
+          "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0}
+        },
+        {
+          "id": 2,
+          "title": "Backend Response Time (95th percentile)",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, rate(http_server_requests_seconds_bucket{job=\"rateflix-backend\"}[5m]))",
+              "legendFormat": "95th percentile"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s"
+            }
+          },
+          "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0}
+        },
+        {
+          "id": 3,
+          "title": "JVM Memory Usage",
+          "type": "timeseries",
+          "targets": [
+            {
+              "expr": "jvm_memory_used_bytes{job=\"rateflix-backend\"}",
+              "legendFormat": "{{`{{area}} - {{id}}`}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes"
+            }
+          },
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+        },
+        {
+          "id": 4,
+          "title": "HTTP Status Codes",
+          "type": "timeseries",
+          "targets": [
+            {
+              "expr": "rate(http_server_requests_seconds_count{job=\"rateflix-backend\"}[5m])",
+              "legendFormat": "{{`{{status}}`}}"
+            }
+          ],
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8}
+        }
+      ],
+      "time": {
+        "from": "now-1h",
+        "to": "now"
+      },
+      "refresh": "30s"
+    }
+  
+  rateflix-infrastructure.json: |
+    {
+      "id": null,
+      "title": "Rateflix Infrastructure",
+      "tags": ["rateflix", "infrastructure"],
+      "timezone": "browser",
+      "panels": [
+        {
+          "id": 1,
+          "title": "Pod CPU Usage",
+          "type": "timeseries",
+          "targets": [
+            {
+              "expr": "kube_pod_container_resource_requests{namespace=\"{{ .Release.Namespace }}\",resource=\"cpu\"}",
+              "legendFormat": "CPU Requests - {{`{{pod}}`}}"
+            },
+            {
+              "expr": "kube_pod_container_resource_limits{namespace=\"{{ .Release.Namespace }}\",resource=\"cpu\"}",
+              "legendFormat": "CPU Limits - {{`{{pod}}`}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            }
+          },
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+        },
+        {
+          "id": 2,
+          "title": "Pod Memory Usage",
+          "type": "timeseries",
+          "targets": [
+            {
+              "expr": "kube_pod_container_resource_requests{namespace=\"{{ .Release.Namespace }}\",resource=\"memory\"}",
+              "legendFormat": "Memory Requests - {{`{{pod}}`}}"
+            },
+            {
+              "expr": "kube_pod_container_resource_limits{namespace=\"{{ .Release.Namespace }}\",resource=\"memory\"}",
+              "legendFormat": "Memory Limits - {{`{{pod}}`}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes"
+            }
+          },
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+        },
+        {
+          "id": 3,
+          "title": "Pod Status",
+          "type": "timeseries",
+          "targets": [
+            {
+              "expr": "kube_pod_status_phase{namespace=\"{{ .Release.Namespace }}\"}",
+              "legendFormat": "{{`{{pod}}`}} - {{`{{phase}}`}}"
+            }
+          ],
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8}
+        }
+      ],
+      "time": {
+        "from": "now-1h",
+        "to": "now"
+      },
+      "refresh": "30s"
+    }
+
+  postgres-metrics.json: |
+    {
+      "id": null,
+      "title": "PostgreSQL Metrics",
+      "tags": ["postgresql", "database"],
+      "timezone": "browser",
+      "panels": [
+        {
+          "id": 1,
+          "title": "Database Connections",
+          "type": "timeseries",
+          "targets": [
+            {
+              "expr": "pg_stat_database_numbackends{job=\"postgres-exporter\"}",
+              "legendFormat": "{{`{{datname}}`}}"
+            }
+          ],
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+        },
+        {
+          "id": 2,
+          "title": "Database Size",
+          "type": "timeseries",
+          "targets": [
+            {
+              "expr": "pg_database_size_bytes{job=\"postgres-exporter\"}",
+              "legendFormat": "{{`{{datname}}`}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes"
+            }
+          },
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+        },
+        {
+          "id": 3,
+          "title": "Query Rate",
+          "type": "timeseries",
+          "targets": [
+            {
+              "expr": "rate(pg_stat_database_xact_commit{job=\"postgres-exporter\"}[5m]) + rate(pg_stat_database_xact_rollback{job=\"postgres-exporter\"}[5m])",
+              "legendFormat": "{{`{{datname}}`}} transactions/sec"
+            }
+          ],
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8}
+        }
+      ],
+      "time": {
+        "from": "now-1h",
+        "to": "now"
+      },
+      "refresh": "30s"
+    }
+
+  kubernetes-cluster.json: |
+    {
+      "id": null,
+      "title": "Kubernetes Namespace Overview",
+      "tags": ["kubernetes", "namespace"],
+      "timezone": "browser",
+      "panels": [
+        {
+          "id": 1,
+          "title": "Total Pods in Namespace",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "count(kube_pod_info{namespace=\"{{ .Release.Namespace }}\"})",
+              "legendFormat": "Total Pods"
+            }
+          ],
+          "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0}
+        },
+        {
+          "id": 2,
+          "title": "Running Pods",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "sum(kube_pod_status_phase{phase=\"Running\",namespace=\"{{ .Release.Namespace }}\"})",
+              "legendFormat": "Running Pods"
+            }
+          ],
+          "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0}
+        },
+        {
+          "id": 3,
+          "title": "Failed Pods",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "sum(kube_pod_status_phase{phase=\"Failed\",namespace=\"{{ .Release.Namespace }}\"})",
+              "legendFormat": "Failed Pods"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "steps": [
+                  {"color": "green", "value": 0},
+                  {"color": "red", "value": 1}
+                ]
+              }
+            }
+          },
+          "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0}
+        },
+        {
+          "id": 4,
+          "title": "Available Deployments",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "sum(kube_deployment_status_replicas_available{namespace=\"{{ .Release.Namespace }}\"})",
+              "legendFormat": "Available Replicas"
+            }
+          ],
+          "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0}
+        },
+        {
+          "id": 5,
+          "title": "Pod Resource Requests",
+          "type": "timeseries",
+          "targets": [
+            {
+              "expr": "kube_pod_container_resource_requests{namespace=\"{{ .Release.Namespace }}\",resource=\"cpu\"}",
+              "legendFormat": "CPU Requests - {{`{{pod}}`}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            }
+          },
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+        },
+        {
+          "id": 6,
+          "title": "Pod Resource Limits",
+          "type": "timeseries",
+          "targets": [
+            {
+              "expr": "kube_pod_container_resource_limits{namespace=\"{{ .Release.Namespace }}\",resource=\"memory\"}",
+              "legendFormat": "Memory Limits - {{`{{pod}}`}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes"
+            }
+          },
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+        },
+        {
+          "id": 7,
+          "title": "Deployment Status",
+          "type": "timeseries",
+          "targets": [
+            {
+              "expr": "kube_deployment_status_replicas{namespace=\"{{ .Release.Namespace }}\"}",
+              "legendFormat": "Desired - {{`{{deployment}}`}}"
+            },
+            {
+              "expr": "kube_deployment_status_replicas_available{namespace=\"{{ .Release.Namespace }}\"}",
+              "legendFormat": "Available - {{`{{deployment}}`}}"
+            }
+          ],
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16}
+        }
+      ],
+      "time": {
+        "from": "now-1h",
+        "to": "now"
+      },
+      "refresh": "30s"
+    }
+{{- end }}

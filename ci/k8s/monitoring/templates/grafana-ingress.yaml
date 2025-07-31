@@ -1,0 +1,23 @@
+{{- if .Values.grafana.ingress.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Values.grafana.name }}-ingress
+  annotations:
+    kubernetes.io/ingress.class: {{ .Values.grafana.ingress.className | quote }}
+    {{- with .Values.grafana.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  rules:
+  - host: {{ .Values.grafana.ingress.host | quote }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ include "monitoring.fullname" . }}-grafana
+            port:
+              number: {{ .Values.grafana.service.port }}
+{{- end }}
